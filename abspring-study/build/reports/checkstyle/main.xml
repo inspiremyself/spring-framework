@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<checkstyle version="8.22">
+<file name="/Users/didi/IdeaProjects/spring-framework/abspring-study/src/main/java/com/langme/service/JavaConfig.java">
+<error line="1" severity="error" message="header.mismatch" source="io.spring.javaformat.checkstyle.check.SpringHeaderCheck"/>
+</file>
+<file name="/Users/didi/IdeaProjects/spring-framework/abspring-study/src/main/java/com/langme/service/Test.java">
+<error line="1" severity="error" message="header.missing" source="io.spring.javaformat.checkstyle.check.SpringHeaderCheck"/>
+<error line="5" column="1" severity="error" message="工具类应隐藏 public 构造器。" source="com.puppycrawl.tools.checkstyle.checks.design.HideUtilityClassConstructorCheck"/>
+<error line="5" column="14" severity="error" message="Class name &apos;Test&apos; must not end with &apos;Test&apos; (checked pattern &apos;^[A-Z][a-zA-Z0-9_]*(?&lt;!Test)$&apos;)." source="com.puppycrawl.tools.checkstyle.checks.naming.TypeNameCheck"/>
+</file>
+<file name="/Users/didi/IdeaProjects/spring-framework/abspring-study/src/main/java/com/langme/service/User.java">
+<error line="1" severity="error" message="header.mismatch" source="io.spring.javaformat.checkstyle.check.SpringHeaderCheck"/>
+<error line="16" column="24" severity="error" message="对实例属性 &apos;id&apos; 的引用需要 &quot;this.&quot;。" source="com.puppycrawl.tools.checkstyle.checks.coding.RequireThisCheck"/>
+<error line="24" column="24" severity="error" message="对实例属性 &apos;userName&apos; 的引用需要 &quot;this.&quot;。" source="com.puppycrawl.tools.checkstyle.checks.coding.RequireThisCheck"/>
+</file>
+</checkstyle>
