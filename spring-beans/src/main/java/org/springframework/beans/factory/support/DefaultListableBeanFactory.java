@@ -1019,18 +1019,22 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			this.beanDefinitionMap.put(beanName, beanDefinition);
 		}
 		else {
-			if (hasBeanCreationStarted()) {
+			if (hasBeanCreationStarted()) { // 判断spring是否进入构建bean的阶段
 				// Cannot modify startup-time collection elements anymore (for stable iteration)
-				synchronized (this.beanDefinitionMap) {
+				synchronized (this.beanDefinitionMap) { // beanDefinitionNames/manualSingletonNames不是线程安全类，需要加锁同步
 					this.beanDefinitionMap.put(beanName, beanDefinition);
 					List<String> updatedDefinitions = new ArrayList<>(this.beanDefinitionNames.size() + 1);
+					// 写时复制(Copy-On-Write)容器？
+					// 写时复制是指：在并发访问的情景下，当需要修改JAVA中Containers的元素时，不直接修改该容器，而是先复制一份副本，在副本上进行修改。修改完成之后，将指向原来容器的引用指向新的容器(副本容器）
+					// 通过写时复制，添加beanName到DefaultListableBeanFactory#beanDefinitionNames
 					updatedDefinitions.addAll(this.beanDefinitionNames);
 					updatedDefinitions.add(beanName);
 					this.beanDefinitionNames = updatedDefinitions;
+					// 通过写时复制，删除manualSingletonNames的
 					removeManualSingletonName(beanName);
 				}
 			}
-			else {
+			else { // 还在注册阶段，不需要加锁同步
 				// Still in startup registration phase
 				this.beanDefinitionMap.put(beanName, beanDefinition);
 				this.beanDefinitionNames.add(beanName);

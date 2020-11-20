@@ -1,6 +1,0 @@
-com/langme/service/User.java
- com.langme.service.User
-com/langme/service/JavaConfig.java
- com.langme.service.JavaConfig
-com/langme/service/Test.java
- com.langme.service.Test

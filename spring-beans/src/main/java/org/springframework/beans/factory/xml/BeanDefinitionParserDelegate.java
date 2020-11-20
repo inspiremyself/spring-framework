@@ -512,16 +512,20 @@ public class BeanDefinitionParserDelegate {
 		}
 
 		try {
+			// 使用className和parent创建BeanDefinition
 			AbstractBeanDefinition bd = createBeanDefinition(className, parent);
 
+			// 处理scope等元素属性
 			parseBeanDefinitionAttributes(ele, beanName, containingBean, bd);
 			bd.setDescription(DomUtils.getChildElementValueByTagName(ele, DESCRIPTION_ELEMENT));
 
+			// 处理其他元素属性
 			parseMetaElements(ele, bd);
 			parseLookupOverrideSubElements(ele, bd.getMethodOverrides());
 			parseReplacedMethodSubElements(ele, bd.getMethodOverrides());
 
 			parseConstructorArgElements(ele, bd);
+			// 处理property元素
 			parsePropertyElements(ele, bd);
 			parseQualifierElements(ele, bd);
 
@@ -837,21 +841,27 @@ public class BeanDefinitionParserDelegate {
 	 * Parse a property element.
 	 */
 	public void parsePropertyElement(Element ele, BeanDefinition bd) {
+		// 解析属性名
 		String propertyName = ele.getAttribute(NAME_ATTRIBUTE);
 		if (!StringUtils.hasLength(propertyName)) {
 			error("Tag 'property' must have a 'name' attribute", ele);
 			return;
 		}
+		// todo leon parseState 起到什么作用？
 		this.parseState.push(new PropertyEntry(propertyName));
 		try {
 			if (bd.getPropertyValues().contains(propertyName)) {
 				error("Multiple 'property' definitions for property '" + propertyName + "'", ele);
 				return;
 			}
+			// 将xml配置的属性值转化为内部表示类
 			Object val = parsePropertyValue(ele, bd, propertyName);
+			// 创建PropertyValue，PropertyValue中name存放属性名，value存放了xml配置原始值。
 			PropertyValue pv = new PropertyValue(propertyName, val);
 			parseMetaElements(ele, pv);
 			pv.setSource(extractSource(ele));
+			// 添加到BeanDefinition，BeanDefinition使用MutablePropertyValues存放所有的属性信息。
+			// xml配置原始值并不是属性最终值，而是xml配置在spring中对应的内部表示类，如property元素的value属性会表示为TypedStringValue（类似于BeanDefinition表示元素）
 			bd.getPropertyValues().addPropertyValue(pv);
 		}
 		finally {
@@ -1383,6 +1393,7 @@ public class BeanDefinitionParserDelegate {
 		if (namespaceUri == null) {
 			return null;
 		}
+		// 通过命名空间获取特定的NamespaceHandler
 		NamespaceHandler handler = this.readerContext.getNamespaceHandlerResolver().resolve(namespaceUri);
 		if (handler == null) {
 			error("Unable to locate Spring NamespaceHandler for XML schema namespace [" + namespaceUri + "]", ele);

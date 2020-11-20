@@ -39,6 +39,7 @@ import org.springframework.util.StringUtils;
  */
 public class BeanDefinitionHolder implements BeanMetadataElement {
 
+	// spring对bean元数据的抽象， 是配置文件中<bean>元素在spring容器中的内部表示类，存储了bean的元数据， 如属性PropertyValues， BeanClassName，Scope等。
 	private final BeanDefinition beanDefinition;
 
 	private final String beanName;
