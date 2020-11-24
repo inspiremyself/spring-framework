@@ -51,9 +51,11 @@ import org.springframework.core.io.Resource;
  * {@link XmlBeanDefinitionReader}
  */
 @Deprecated
+// SuppressWarnings作用：用于抑制编译器产生警告信息。告诉编译器忽略指定的警告，不用在编译完成后出现警告信息
 @SuppressWarnings({"serial", "all"})
 public class XmlBeanFactory extends DefaultListableBeanFactory {
-
+	// final 最终的,只能被赋值一次
+	// XmlBeanFactory中使用了自定义的XmlBeanDefinitionReader读取XML文件
 	private final XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(this);
 
 
@@ -75,6 +77,8 @@ public class XmlBeanFactory extends DefaultListableBeanFactory {
 	 * @throws BeansException in case of loading or parsing errors
 	 */
 	public XmlBeanFactory(Resource resource, BeanFactory parentBeanFactory) throws BeansException {
+		// 调用父构造函数, 在AbstractAutowireCapableBeanFactory类的构造函数中设置忽略给定接口的自动装配功能,
+		// 并调用AbstractBeanFactory类中的setParentBeanFactory()方法设置双亲IoC容器
 		super(parentBeanFactory);
 		this.reader.loadBeanDefinitions(resource);
 	}

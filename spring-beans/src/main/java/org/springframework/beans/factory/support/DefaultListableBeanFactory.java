@@ -981,6 +981,12 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		if (beanDefinition instanceof AbstractBeanDefinition) {
 			try {
+
+				/**
+				 * 注册前的最后一次校验,这里的校验不同于之前的XML文件校验
+				 * 主要是对于AbstracBeanDefinition属性中的methodOverrides校验,
+				 * 校验methodOverrides是否与工厂方法并存或者methodOverrides对应的方法不存在
+				 */
 				((AbstractBeanDefinition) beanDefinition).validate();
 			}
 			catch (BeanDefinitionValidationException ex) {
@@ -991,6 +997,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		BeanDefinition existingDefinition = this.beanDefinitionMap.get(beanName);
 		if (existingDefinition != null) {
+			// 如果对应的BeanName已经注册且在配置中配置了bean不允许被覆盖,则抛出异常
 			if (!isAllowBeanDefinitionOverriding()) {
 				throw new BeanDefinitionOverrideException(beanName, beanDefinition, existingDefinition);
 			}
@@ -1016,11 +1023,20 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							"] with [" + beanDefinition + "]");
 				}
 			}
+			// 注册beanDefinition(将beanDefinition放入map缓存中)
 			this.beanDefinitionMap.put(beanName, beanDefinition);
 		}
+		// 处理注册未被注册的beanName的情况
 		else {
+			/**
+			 * 检查这个工厂的bean创建阶段是否已经开始，即 是否有任何bean被标记为同时创建。
+			 * 如果bean工厂的bean创建已经开始, 那么就不能在beanDefinitionNames集合中添加beanName; 因为创建bean时, 会迭代beanDefinitionNames集合,获取beanName，获取BeanDefinition创建bean实例
+			 * 一旦开始迭代, 则不允许在向该map集合中插入元素
+			 */
 			if (hasBeanCreationStarted()) { // 判断spring是否进入构建bean的阶段
 				// Cannot modify startup-time collection elements anymore (for stable iteration)
+				// 处于bean创建阶段
+				// 因为beanDefinitionMap是全局变量,这里肯定会存在并发访问的情况
 				synchronized (this.beanDefinitionMap) { // beanDefinitionNames/manualSingletonNames不是线程安全类，需要加锁同步
 					this.beanDefinitionMap.put(beanName, beanDefinition);
 					List<String> updatedDefinitions = new ArrayList<>(this.beanDefinitionNames.size() + 1);
@@ -1034,10 +1050,13 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 					removeManualSingletonName(beanName);
 				}
 			}
+			//仍处于注册阶段
 			else { // 还在注册阶段，不需要加锁同步
 				// Still in startup registration phase
 				this.beanDefinitionMap.put(beanName, beanDefinition);
+				// bean定义名称列表，按注册顺序排列
 				this.beanDefinitionNames.add(beanName);
+				// 手动注册的单例程序的名称列表，按注册顺序排列
 				removeManualSingletonName(beanName);
 			}
 			this.frozenBeanDefinitionNames = null;

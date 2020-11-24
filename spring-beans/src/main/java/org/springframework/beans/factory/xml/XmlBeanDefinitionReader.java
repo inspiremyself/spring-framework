@@ -322,20 +322,25 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Loading XML bean definitions from " + encodedResource);
 		}
+		// 通过Set来记录已经加载的资源,它是放在ThreadLocal中
 		// currentResources 用于防止本线程重复加载context配置文件
 		Set<EncodedResource> currentResources = this.resourcesCurrentlyBeingLoaded.get();
-
+		// If this set already contains the element, the call leaves the set * unchanged and returns {@code false}
+		// 将encodedResource添加到currentResources集合中,如果添加失败,则抛出异常
 		if (!currentResources.add(encodedResource)) {
 			throw new BeanDefinitionStoreException(
 					"Detected cyclic loading of " + encodedResource + " - check your import definitions!");
 		}
 
+		// 通过encodedResource获取已经封装的Resource对象并再次从Resource中获取其中的inputStream
 		try (InputStream inputStream = encodedResource.getResource().getInputStream()) {
 			InputSource inputSource = new InputSource(inputStream);
+			// 如果encodedResource中设置的编码不为空,则设置inputSource的编码
 			if (encodedResource.getEncoding() != null) {
 				inputSource.setEncoding(encodedResource.getEncoding());
 			}
-			// 真正加载xml
+			// 核心部分：加载bean
+			// 传入的inputSource是org.xml.sax.InputResource,用于sax解析
 			return doLoadBeanDefinitions(inputSource, encodedResource.getResource());
 		}
 		catch (IOException ex) {
@@ -343,6 +348,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 					"IOException parsing XML document from " + encodedResource.getResource(), ex);
 		}
 		finally {
+			// 加载完毕,将encodedResource从currentResources集合中移除
 			currentResources.remove(encodedResource);
 			if (currentResources.isEmpty()) {
 				this.resourcesCurrentlyBeingLoaded.remove();
@@ -510,6 +516,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 */
 	public int registerBeanDefinitions(Document doc, Resource resource) throws BeanDefinitionStoreException {
 		// 构建BeanDefinitionDocumentReader
+		// 创建Bean定义信息解析器 (DefaultBeanDefinitionDocumentReader)
 		BeanDefinitionDocumentReader documentReader = createBeanDefinitionDocumentReader();
 		// 获取解析前的bean数量
 		int countBefore = getRegistry().getBeanDefinitionCount();

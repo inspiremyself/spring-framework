@@ -14,6 +14,7 @@ public class Test {
 
 		// Spring源码解析 -- 读取bean元数据
 		BeanFactory xmlBeanFactory = new XmlBeanFactory(new ClassPathResource("spring.xml"));
+		User userService = (User) xmlBeanFactory.getBean("user");
 
 	}
 }

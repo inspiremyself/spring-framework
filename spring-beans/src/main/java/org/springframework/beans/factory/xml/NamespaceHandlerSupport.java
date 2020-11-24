@@ -70,6 +70,14 @@ public abstract class NamespaceHandlerSupport implements NamespaceHandler {
 	@Override
 	@Nullable
 	public BeanDefinition parse(Element element, ParserContext parserContext) {
+		/**
+		 * 寻找解析器并进行解析操作,在自定义handler中并没有重写父类中parse()方法,因此此处是调用父类AbstractBeanDefinitionParser中的parse()方法
+		 *
+		 * 在parse()方法中根据标签命名空间获取不同的解析进行解析
+		 * 例如: 标签:<context:component-scan base-package="com.ioc.lic"/>的解析为ComponentScanBeanDefinitionParser
+		 * 该解析器会去解析包路径信息, 注册包路径下的所有BeanDefinition
+		 */
+
 		BeanDefinitionParser parser = findParserForElement(element, parserContext);
 		return (parser != null ? parser.parse(element, parserContext) : null);
 	}
@@ -80,6 +88,7 @@ public abstract class NamespaceHandlerSupport implements NamespaceHandler {
 	 */
 	@Nullable
 	private BeanDefinitionParser findParserForElement(Element element, ParserContext parserContext) {
+		// 获取元素名称,也就是<myname:user>中的user,若在实例中,此时localName为user
 		String localName = parserContext.getDelegate().getLocalName(element);
 		BeanDefinitionParser parser = this.parsers.get(localName);
 		if (parser == null) {

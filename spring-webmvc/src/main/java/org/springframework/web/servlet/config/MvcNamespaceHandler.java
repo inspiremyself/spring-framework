@@ -27,10 +27,16 @@ import org.springframework.beans.factory.xml.NamespaceHandlerSupport;
  * @author Sebastien Deleuze
  * @since 3.0
  */
+// SpringMvc的名称空间解析器初始化方法
 public class MvcNamespaceHandler extends NamespaceHandlerSupport {
 
 	@Override
 	public void init() {
+		/**
+		 * 将标签名称与对应解析器关联
+		 *
+		 * 第一次尝试获取MvcNamespaceHandler时会调用该初始化方法进行初始化
+		 */
 		registerBeanDefinitionParser("annotation-driven", new AnnotationDrivenBeanDefinitionParser());
 		registerBeanDefinitionParser("default-servlet-handler", new DefaultServletHandlerBeanDefinitionParser());
 		registerBeanDefinitionParser("interceptors", new InterceptorsBeanDefinitionParser());
