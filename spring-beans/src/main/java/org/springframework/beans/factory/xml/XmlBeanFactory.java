@@ -47,10 +47,11 @@ import org.springframework.core.io.Resource;
  * @since 15 April 2001
  * @see org.springframework.beans.factory.support.DefaultListableBeanFactory
  * @see XmlBeanDefinitionReader
- * @deprecated as of Spring 3.1 in favor of {@link DefaultListableBeanFactory} and
  * {@link XmlBeanDefinitionReader}
  */
-@Deprecated
+// 去掉 过时标志，方便调用和调试
+// * @deprecated as of Spring 3.1 in favor of {@link DefaultListableBeanFactory} and
+// @Deprecated
 // SuppressWarnings作用：用于抑制编译器产生警告信息。告诉编译器忽略指定的警告，不用在编译完成后出现警告信息
 @SuppressWarnings({"serial", "all"})
 public class XmlBeanFactory extends DefaultListableBeanFactory {
