@@ -75,8 +75,10 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 									(PrivilegedExceptionAction<Constructor<?>>) clazz::getDeclaredConstructor);
 						}
 						else {
+							// 获取无参构造函数
 							constructorToUse = clazz.getDeclaredConstructor();
 						}
+						// 添加无参构造函数加入到BeanDefinition缓存中
 						bd.resolvedConstructorOrFactoryMethod = constructorToUse;
 					}
 					catch (Throwable ex) {
@@ -84,6 +86,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 					}
 				}
 			}
+			// bean中存在lookup-method或replace-method，必须使用CGLIB构造bean
 			return BeanUtils.instantiateClass(constructorToUse);
 		}
 		else {

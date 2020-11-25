@@ -122,6 +122,7 @@ class TypeConverterDelegate {
 
 		// No custom editor but custom ConversionService specified?
 		ConversionService conversionService = this.propertyEditorRegistry.getConversionService();
+		// PropertyEditor为空，使用ConversionService
 		if (editor == null && conversionService != null && newValue != null && typeDescriptor != null) {
 			TypeDescriptor sourceTypeDesc = TypeDescriptor.forObject(newValue);
 			if (conversionService.canConvert(sourceTypeDesc, typeDescriptor)) {
@@ -136,7 +137,7 @@ class TypeConverterDelegate {
 		}
 
 		Object convertedValue = newValue;
-
+		// PropertyEditor不为空，使用PropertyEditor
 		// Value not of required type?
 		if (editor != null || (requiredType != null && !ClassUtils.isAssignableValue(requiredType, convertedValue))) {
 			if (typeDescriptor != null && requiredType != null && Collection.class.isAssignableFrom(requiredType) &&
@@ -164,6 +165,7 @@ class TypeConverterDelegate {
 				if (Object.class == requiredType) {
 					return (T) convertedValue;
 				}
+				// 处理数组，集合等类型的属性，这里会遍历集合元素，递归调用convertIfNecessary转化，再收集处理结果。
 				else if (requiredType.isArray()) {
 					// Array required -> apply appropriate conversion of elements.
 					if (convertedValue instanceof String && Enum.class.isAssignableFrom(requiredType.getComponentType())) {
@@ -226,10 +228,11 @@ class TypeConverterDelegate {
 			else {
 				// convertedValue == null
 				if (requiredType == Optional.class) {
+					// 对转化结果是空值的情况进行处理
 					convertedValue = Optional.empty();
 				}
 			}
-
+			// 异常情况，会重复调用一遍conversionService
 			if (!ClassUtils.isAssignableValue(requiredType, convertedValue)) {
 				if (conversionAttemptEx != null) {
 					// Original exception from former ConversionService call above...

@@ -253,6 +253,9 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 			String propertyName = pv.getName();
 			AbstractNestablePropertyAccessor nestedPa;
 			try {
+				// 根据propertyName获取不同的属性访问器(set方法引用)
+				// getPropertyAccessorForPropertyPath返回的是BeanWrapperImpl，他继承了AbstractNestablePropertyAccessor。
+				// 这里支持嵌套属性，如Blog中存在author属性，而Author存在name属性，对Blog的bean可配置author.name，这里返回的是blog的author属性对应的BeanWrapperImpl。
 				nestedPa = getPropertyAccessorForPropertyPath(propertyName);
 			}
 			catch (NotReadablePropertyException ex) {

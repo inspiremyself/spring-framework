@@ -253,6 +253,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		Object bean;
 
 		// Eagerly check singleton cache for manually registered singletons.
+		// 单例的bean，先从缓冲中查询
+		// getSingleton方法会查询singletonObject，earlySingletonObjects，singletonFactories等缓存，它们都是简单的map，缓存了单例的bean，正在创建的bean和ObjectFactory对象。
 		Object sharedInstance = getSingleton(beanName);
 		if (sharedInstance != null && args == null) {
 			if (logger.isTraceEnabled()) {
@@ -264,19 +266,22 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.trace("Returning cached instance of singleton bean '" + beanName + "'");
 				}
 			}
+			//如果beanInstance是FactoryBean，会调用其getObject()方法创建bean，如果不是，返回直接返回该beanInstance参数。
+			// FactoryBean是spring提供的一个扩展接口，用户实现该接口可以自定义bean的创建。
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
 
 		else {
 			// Fail if we're already creating this bean instance:
 			// We're assumably within a circular reference.
+			// 如果现在正在创建这个bean，则直接报错，这时很可能陷入循环引用了
 			if (isPrototypeCurrentlyInCreation(beanName)) {
 				throw new BeanCurrentlyInCreationException(beanName);
 			}
 
 			// Check if bean definition exists in this factory.
 			BeanFactory parentBeanFactory = getParentBeanFactory();
-			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
+			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) { // 当前BeanFactory不存在对应的BeanDefinition，尝试通过父BeanFactory构造bean
 				// Not found -> check parent.
 				String nameToLookup = originalBeanName(name);
 				if (parentBeanFactory instanceof AbstractBeanFactory) {
@@ -295,7 +300,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					return (T) parentBeanFactory.getBean(nameToLookup);
 				}
 			}
-
+			// 标记这个bean正在构造中
 			if (!typeCheckOnly) {
 				markBeanAsCreated(beanName);
 			}
@@ -306,6 +311,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				if (requiredType != null) {
 					beanCreation.tag("beanType", requiredType::toString);
 				}
+				// 获取BeanDefinition
+				// spring会将bean元数据转化为BeanDefinition，存入DefaultListableBeanFactory#beanDefinitionMap属性中。
+				// getMergedLocalBeanDefinition方法会获取对应BeanDefinition，如果BeanDefinition存在ParentName，会获取父BeanDefinition，再合并元数据。
 				RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 				checkMergedBeanDefinition(mbd, beanName, args);
 
@@ -319,6 +327,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 						}
 						registerDependentBean(dep, beanName);
 						try {
+							// 先构造依赖的bean
 							getBean(dep);
 						}
 						catch (NoSuchBeanDefinitionException ex) {
@@ -330,8 +339,11 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 				// Create bean instance.
 				if (mbd.isSingleton()) {
+					// 使用ObjectFactory构造并注册一个bean，getSingleton方法也要完成构造bean的准备和善后工作
+					// todo leon 学习单例模式
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
+							//匿名的ObjectFactory，调用AbstractAutowireCapableBeanFactory#createBean进行实际的构造bean工作
 							return createBean(beanName, mbd, args);
 						}
 						catch (BeansException ex) {
@@ -396,6 +408,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 
 		// Check if required type matches the type of the actual bean instance.
+		// bean类型转换
+		// spring中bean有singleton，prototype等范围，这里只关注singleton类型的bean的构造过程。
 		if (requiredType != null && !requiredType.isInstance(bean)) {
 			try {
 				T convertedBean = getTypeConverter().convertIfNecessary(bean, requiredType);
