@@ -188,6 +188,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			this.instantiationStrategy = new SimpleInstantiationStrategy();
 		}
 		else {
+			// spring中创建对象的时候先通过 ConstructorResolver找到对应的实例化方法和参数，
+			// 再通过实例化策略InstantiationStrategy进行实例化，
+			// 根据创建对象的三个分支( 工厂方法、有参构造方法、无参构造方法 )
 			this.instantiationStrategy = new CglibSubclassingInstantiationStrategy();
 		}
 	}
@@ -289,6 +292,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see org.springframework.beans.factory.BeanFactoryAware
 	 * @see org.springframework.context.ApplicationContextAware
 	 */
+	// 上述注释的翻译：忽略给定依赖接口的自动装配，这通常被应用程序上下文用于注册。
+	// 依赖关系是通过其他方式解决的，比如BeanFactory BeanFactoryAware或ApplicationContext通过ApplicationContextAware
+	// 默认情况下，只有BeanFactoryAware接口被忽略。若要忽略其他类型，请为每种类型调用此方法。
+
+	// 结论：https://www.jianshu.com/p/3c7e0608ff1f?from=singlemessage
+	// 自动装配时忽略指定接口或类的依赖注入，使用ignoreDependencyType已经足够
+	// ignoreDependencyInterface的真正意思是在自动装配时忽略指定接口的实现类中，对外的依赖。
+
 	public void ignoreDependencyInterface(Class<?> ifc) {
 		this.ignoredDependencyInterfaces.add(ifc);
 	}

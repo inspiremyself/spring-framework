@@ -176,13 +176,43 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @param allowEarlyReference whether early references should be created or not
 	 * @return the registered singleton object, or {@code null} if none found
 	 */
+	// 1.检查缓存中是否存在目标bean的实例, 存在的话就直接返回
+	// 2.如果缓存中没有, 并且当前该实例在正在创建中, 则锁定全局变量进行处理
+	// 3.如果此bean正在加载, 但是可以从earlySingletonObjects中获取到目标bean, 就返回该对象; 否则进行创建
+	// 4.如果早期目标bean实例获取失败, 则尝试从缓存中获取创建目标bean的工厂bean(循环依赖解决)
+	// 5.调用预先设定的getObject方法, 创建目标bean实例singletonObject
+	// 6.记录在earlySingletonObjects缓存中, 避免循环依赖 (不等bean创建完成就将创建bean的ObjectFactory提早曝光加入缓存中, 一旦下一个bean创建需要依赖上一个bean, 则直接使用ObjectFactory)
+
+	// 注意一:
+	// 1.对于循环依赖问题，Spring根据注入方式的不同，采取不同的处理策略，对于双方都是使用属性值注入或者setter方法注入，则spring可以自动解决循环依赖注入问题，应用程序可以成功启动；对于双方都是使用构造函数注入对方或者主bean对象使用构造函数注入，则spring无法解决循环依赖注入，程序报错无法启动;
+	// 2.Spring利用三个缓存(singletonObjects, earlySingletonObjects, singletonFactories)集合解决循环依赖问题, 在尝试从缓存中获取时, 首先检查是否可以从一级缓存singletonObjects中直接获取到已经创建好的依赖bean实例, 如果获取失败, 则尝试从二级缓存earlySingletonObjects中获取早期创建的依赖bean(该bean只完成了实例化, 没有进行属性注入等操作); 如果获取失败, 则尝试从三级缓存singletonFactories中获取对象工厂, 通过对象工厂获取依赖bean的早期实例; 如果通过三级缓存还没有获取到, 则后面开始创建依赖bean
+	//
+	// 注意二:
+	// 1.能够解决循环依赖的情况: (1) 目标bean通过属性或者setter方法注入依赖bean，所依赖的bean也通过属性或者setter方法注入目标bean；(2)目标bean通过属性或者setter方法注入依赖bean，依赖bean通过构造函数注入目标bean
+	// 2.不能解决循环依赖的情况: (1) 目标bean通过构造函数注入依赖bean, 而依赖bean也通过构造函数注入目标bean; (2) 目标bean通过构造函数注入依赖bean, 而依赖bean通过属性或者setter方法注入目标bean;
+	// 3.总结: 能够解决循环依赖的前提是, 目标bean可以通过构造函数完成实例化; 一旦在通过构造函数实例化时出现循环依赖, 那么createBeanInstance()方法无法返回，出现代码死锁，程序报循环依赖错误;
+
 	@Nullable
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		// Quick check for existing instance without full singleton lock
+
+		/**
+		 * 1.检查缓存中是否存在实例,存在的话就直接返回
+		 */
 		Object singletonObject = this.singletonObjects.get(beanName);
+		/**
+		 * 2.如果缓存中没有,并且当前该实例在正在创建中,则锁定全局变量进行处理
+		 */
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
+			/**
+			 * 如果此bean正在加载,但是可以从earlySingletonObjects中获取到目标bean,就返回该对象;否则进行创建
+			 */
 			singletonObject = this.earlySingletonObjects.get(beanName);
 			if (singletonObject == null && allowEarlyReference) {
+				/**
+				 * 当某些方法需要提前初始化的时候会调用addSingletonFactory方法将对应的ObjectFactory初始化策略存储在singletonFactories(缓存中)
+				 * 如果早期目标bean获取失败, 则尝试从缓存中获取创建目标bean的工厂bean(循环依赖解决)
+				 */
 				synchronized (this.singletonObjects) {
 					// Consistent creation of early reference within full singleton lock
 					singletonObject = this.singletonObjects.get(beanName);
@@ -191,8 +221,18 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 						if (singletonObject == null) {
 							ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
 							if (singletonFactory != null) {
+								/**
+								 * 调用预先设定的getObject方法,创建singletonObject
+								 */
 								singletonObject = singletonFactory.getObject();
+								/**
+								 * 记录在earlySingletonObjects缓存中,避免循环依赖
+								 * (不等bean创建完成就将创建bean的ObjectFactory提早曝光加入缓存中,一旦下一个bean创建需要依赖上一个bean,则直接使用ObjectFactory)
+								 */
 								this.earlySingletonObjects.put(beanName, singletonObject);
+								/**
+								 * singletonFactories:用于保存BeanName和创建工厂bean之间的关系,与BeanName相关的bean已经被创建,所以需要从singletonFactories移除BeanName
+								 */
 								this.singletonFactories.remove(beanName);
 							}
 						}

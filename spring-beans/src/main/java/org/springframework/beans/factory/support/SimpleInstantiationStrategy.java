@@ -56,7 +56,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 		return currentlyInvokedFactoryMethod.get();
 	}
 
-
+	// 在SimpleInstantiationStrategy中对这instantiate(默认构造方法、指定构造方法、指定工厂方法)三个方法做了简单实现，如果工厂方法实例化直接用反射创建对象，如果是构造方法实例化的则判断是否有MethodOverrides，如果有无MethodOverrides也是直接用反射，如果有MethodOverrides就需要用cglib实例化对象，SimpleInstantiationStrategy把通过cglib实例化的任务交给了它的子类CglibSubclassingInstantiationStrategy。
 	@Override
 	public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, BeanFactory owner) {
 		// Don't override the class with CGLIB if no overrides.
