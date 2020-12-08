@@ -586,6 +586,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 		if (instanceWrapper == null) {
 			// 构造一个空的（属性未注入）bean，生成BeanWrapper
+			// 实例化bean,将BeanDefinition转为BeanWrapper
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
 		Object bean = instanceWrapper.getWrappedInstance();
@@ -598,7 +599,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		synchronized (mbd.postProcessingLock) {
 			if (!mbd.postProcessed) {
 				try {
-					// pring扩展机制，调用MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition
+					// bean合并后,应用后处理器，如：Autowired注解正式通过此方法实现诸如类型的预解析
+					// AutowiredAnnotationBeanPostProcessor.postProcessMergedBeanDefinition
+					// spring扩展机制，调用MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
@@ -611,22 +614,28 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Eagerly cache singletons to be able to resolve circular references
 		// even when triggered by lifecycle interfaces like BeanFactoryAware.
+		// 是否允许单例提前暴露
 		boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
 				isSingletonCurrentlyInCreation(beanName));
+		// 单例&允许循环依赖&正在创建中的单例
 		if (earlySingletonExposure) {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
+			// 创建bean过程中将创建bean的工厂添加到this.singletonFactories单例缓存池
+			// 同时将当前bean添加到this.registeredSingletons单例缓存池中,标记bean已创建
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
 		// Initialize the bean instance.
 		Object exposedObject = bean;
 		try {
+			// bean的属性填充，
 			// populateBean负责注入属性到bean
 			populateBean(beanName, mbd, instanceWrapper);
 			// todo leon 学习 spring 扩展机制
+			// 通过bean初始化进行扩展
 			// spring扩展机制，调用Aware方法和init方法，并调用BeanPostProcessor#postProcessAfterInitialization方法
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
 		}
@@ -639,9 +648,19 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						mbd.getResourceDescription(), beanName, "Initialization of bean failed", ex);
 			}
 		}
-
+		// 对已经实例化的bean进行循环依赖检查
 		if (earlySingletonExposure) {
+			// 查看当前bean是否被询依赖，当前bean正在创建中，不会出现在singletonObjects缓存中，
+			// 假设当前bean没有被依赖，则当前bean实例一定在singletonFactories中，
+			// 如果被依赖，则当前bean实例因为需要加载，则会在缓存中查找，当查找后，会将singletonFactories中的工厂生产的实例存放在earlySingletonObjects单例缓存中，
+
+			// 为了检测是否有循环依赖，只需要查询earlySingletonObjects单例缓存中是否存在当前bean的实例，那么参数allowEarlyReference为false
+
 			Object earlySingletonReference = getSingleton(beanName, false);
+			// 如果earlySingletonReference不为空，则发生了循环依赖，
+			// 那么需要检查当前实例与初始化后的实例是否一样，
+			// 如果一样，则可以直接返回使用，
+			// 如果不一样，则需要检查是否有未完成依赖的属性
 			if (earlySingletonReference != null) {
 				if (exposedObject == bean) {
 					exposedObject = earlySingletonReference;
@@ -650,10 +669,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					String[] dependentBeans = getDependentBeans(beanName);
 					Set<String> actualDependentBeans = new LinkedHashSet<>(dependentBeans.length);
 					for (String dependentBean : dependentBeans) {
+						// 如果当前依赖并没有实例化，没有出现在已经创建实例的bean缓存中(!this.alreadyCreated.contains(beanName))
+						// 什么时候将bean记录到alreadyCreated中呢？参考AbstractBeanFactory.doGetBean-->AbstractBeanFactory.markBeanAsCreated
 						if (!removeSingletonIfCreatedForTypeCheckOnly(dependentBean)) {
 							actualDependentBeans.add(dependentBean);
 						}
 					}
+					// 如果存在没有实例化的依赖，则说明当前bean实例化失败
 					if (!actualDependentBeans.isEmpty()) {
 						throw new BeanCurrentlyInCreationException(beanName,
 								"Bean with name '" + beanName + "' has been injected into other beans [" +
@@ -669,6 +691,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// 如果bean存在Destroy方法，或存在对应的DestructionAwareBeanPostProcessor，注册该bean为disposable。（该bean销毁时要调用对应的销毁机制）
 		// Register bean as disposable.
 		try {
+			// 注册DisposableBean，如果配置了destroy-method，这里需要注册，便于在销毁bean调用
 			registerDisposableBeanIfNecessary(beanName, bean, mbd);
 		}
 		catch (BeanDefinitionValidationException ex) {
@@ -1394,6 +1417,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@SuppressWarnings("deprecation")  // for postProcessPropertyValues
 	// 装载bean
 	protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable BeanWrapper bw) {
+		// 这里会将当前bean所需的依赖进行实例化,getBean(propertyValue)，并填充
+		// 举例A类某字段依赖B，那么在A还未完成实例化前，在填充属性阶段，会优先实例化A的字段B，此时Abean存储在singletonFactories中
+		// 如果恰好B类中某字段依赖A，循环出现了，如何解决？
+		// 还记得上述首次获取单例的代码？依次从singletonObjects-->earlySingletonObjects-->singletonFactories
+		// 这样A类的依赖B就可以拿到自己的依赖A的实例，此处实例不是完全的，但与最终单例A的地址是一样的，当A实例完成后，那么B类中引用的A的实例也是全部完成实例化的
 		if (bw == null) {
 			if (mbd.hasPropertyValues()) {
 				throw new BeanCreationException(
@@ -1820,15 +1848,18 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}, getAccessControlContext());
 		}
 		else {
+			// 为当前bean获取一些相对应的资源，调用Aware,如BeanFactoryAware，
 			invokeAwareMethods(beanName, bean);
 		}
 
 		Object wrappedBean = bean;
 		if (mbd == null || !mbd.isSynthetic()) {
+			// 在调用客户自定义初始化前，利用BeanPostProcessors自定义扩展，
 			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
 		}
 
 		try {
+			// 调用用户自定的初始化逻辑
 			invokeInitMethods(beanName, wrappedBean, mbd);
 		}
 		catch (Throwable ex) {
@@ -1837,6 +1868,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					beanName, "Invocation of init method failed", ex);
 		}
 		if (mbd == null || !mbd.isSynthetic()) {
+			// 调用用户自定义的init-method
+			// 在调用客户自定义初始化后，利用BeanPostProcessors自定义扩展
 			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
 		}
 
@@ -1883,6 +1916,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (System.getSecurityManager() != null) {
 				try {
 					AccessController.doPrivileged((PrivilegedExceptionAction<Object>) () -> {
+						// 优先调用afterPropertiesSet
 						((InitializingBean) bean).afterPropertiesSet();
 						return null;
 					}, getAccessControlContext());
